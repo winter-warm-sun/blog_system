@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>博客详情页</title>
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/blog_detail.css">
+
+    <!-- 引入 editor.md 的依赖 -->
+    <link rel="stylesheet" href="editor.md/css/editormd.min.css" />
+    <script src="js/jquery.min.js"></script>
+    <script src="editor.md/lib/marked.min.js"></script>
+    <script src="editor.md/lib/prettify.min.js"></script>
+    <script src="editor.md/editormd.js"></script>
+</head>
+<body>
+    <div class="nav">
+        <img src="image/dd.jpg" alt="">
+        <span>我的博客系统</span>
+        <!-- 空白元素，用来占位置 -->
+        <div class="spacer"></div>
+        <a href="blog_list.html">主页</a>
+        <a href="blog_edit.html">写博客</a>
+        <a href="logout">注销</a>
+    </div>
+
+    <div class="container">
+        <!-- 左侧个人信息 -->
+        <div class="left">
+            <!-- 表示整个用户信息区域 -->
+            <div class="card">
+                <img src="image/2.jpg" alt="">
+                <h3></h3>
+                <a href="#">gitHub地址</a>
+                <div class="counter">
+                    <span>文章</span>
+                    <span>分类</span>
+                </div>
+                <div class="counter">
+                    <span>2</span>
+                    <span>1</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧个人信息 -->
+        <div class="right">
+            <!-- 使用该div来包裹整个博客的内容详情 -->
+            <div class="blog-content">
+                <!-- 与博客详情页逻辑不同的是，该页面不再需要创建标签，
+                    直接在已经挂在DOM树上的标签中填写内容即可，因为该页面是固定区域的，
+                    而列表页是多个列表 -->
+                <!-- 博客标题 -->
+                <h3></h3>
+                <!-- 博客的时间 -->
+                <div class="date"></div>
+                <!-- 正文 -->
+                <div id="content" style="opacity: 80%">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getBlogDetail() {
+           $.ajax({
+               type: 'get',
+               // location.search 拿到了形如 '?blogId=5' 这样的一段内容
+               url: 'blog' + location.search,
+               success: function(body) {
+                   // 根据 body 中的内容来构造页面
+                   // 1. 构造博客标题
+                   let h3 = document.querySelector(".blog-content>h3");
+                   h3.innerHTML = body.title;
+                   // 2. 构造博客发布时间
+                   let dateDiv = document.querySelector('.date');
+                   dateDiv.innerHTML = body.postTime;
+                   // 3. 构造博客正文
+                   // 如果直接把 content 设为 innerHTML, 此时展示在界面上的内容, 是原始的 markdown 字符串
+                   // 咱们需要的是渲染后的, 带有格式的效果
+                   // let content = document.querySelector('#content');
+                   // content.innerHTML = body.content;
+
+                   // 第一个参数对应 id=content 的 html 标签. 渲染后得到的 html 片段就会被放到这个 标签下. 
+                   editormd.markdownToHTML('content', {
+                       markdown: body.content
+                   });
+               }
+           });
+       }
+       getBlogDetail();
+
+       function getUserInfo() {
+        $.ajax({
+            type:'get',
+            url:'login',
+            success:function(body) {
+                if(body.userId&&body.userId>0) {
+                    console.log("当前用户登录成功! 用户名: " + body.username);
+                    
+                    //在getUserInfo回调函数中，来获取作者信息
+                    //将登录的user作为参数传过去
+                    getAuthorInfo(body);
+                } else {
+                        // 登录失败!
+                        // 让前端页面, 跳转到 login.html
+                        alert("当前您尚未登录! 请登录后再访问博客列表!");
+                        location.assign('blog_login.html');
+                    }
+            },
+            error: function() {
+                alert("当前您尚未登录! 请登录后再访问博客列表!");
+                location.assign('blog_login.html');
+            }
+        });
+       }
+
+       //判定用户的登录状态
+       getUserInfo();
+
+       //从服务器获取当前博客的作者信息，并显示到界面上
+       //参数user就是刚才从服务器拿到的当前登录用户的信息
+       function getAuthorInfo(user) {
+        $.ajax({
+            type:'get',
+            url:'authorInfo'+location.search,
+            success:function(body) {
+                //此处的body,就是服务器返回的User对象，是文章的作者信息
+                if(body.username) {
+                    //如果响应中存在username，就把这个值设置到页面上
+                    changeUserName(body.username);
+
+                    if(body.username==user.username) {
+                        //作者和登录的用户是一个人，则显示“删除按钮”
+                        let navDiv=document.querySelector('.nav');
+                        let a=document.createElement('a');
+                        a.innerHTML='删除';
+                        //期望点击删除，构造出一个形如blogDelete?blogId=6这样的请求
+                        a.href='blogDelete'+location.search;
+                        navDiv.appendChild(a);
+                    }
+                }else {
+                    console.log("获取作者信息失败! " + body.reason);
+                
+                }
+            }
+        });
+       }
+
+       function changeUserName(username) {
+            let h3 = document.querySelector('.card>h3');
+            h3.innerHTML = username;
+        }
+   </script>
+</body>
+</html>
